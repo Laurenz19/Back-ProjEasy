@@ -1,0 +1,870 @@
+openapi: 3.0.0
+info:
+  title: API Documentation
+  description: RESTFUL API DOCUMENTATION DU PROJET DBA
+  version: 0.1.9
+servers:
+  - url: http://localhost:3001
+    description: Serveur local (development)
+components:
+  securitySchemes:
+    jwt:
+      type: http
+      scheme: bearer
+      in: header
+      bearerFormat: jwt
+      description: JWT Authorization
+  schemas:
+
+    # Schema du medecin
+    Medecin:
+      type: object
+      properties:
+        id: 
+          type: integer
+          description: l'identifiant du medecin
+          readonly: true
+        num_medecin:
+          type: string
+          description: le numero du medecin (5 caractères maximum)
+        nom:
+          type: string
+          description: le nom du medecin (3 à 20 caractères)
+        prenoms:
+          type: string
+          description: le prenom du medecin (3 à 50 caractères et nullable)
+        tarif:
+          type: integer
+          description: le tarif journalier du medecin (100 Ar minimum 😅)
+        
+      required:
+        - num_medecin
+        - nom
+        - prenoms
+        - tarif
+      example:
+        num_medecin: "00001"
+        nom: "nom"
+        prenoms: "prenoms"
+        tarif: 100
+    
+
+    # Schema du patient
+    Patient:
+      type: object
+      properties:
+        id: 
+          type: integer
+          description: l'identifiant du patient
+          readonly: true
+        nom:
+          type: string
+          description: le nom du patient (3 à 20 caractères)
+        prenoms:
+          type: string
+          description: le prenom du patient (3 à 50 caractères et nullable)
+        genre:
+          type: string
+          description: le genre soit M ou F
+        adresse:
+          type: string
+          description: l'adresse du patient (100 caractères maximum)
+      required:
+        - nom
+        - genre
+        - adresse
+      example: 
+        nom: "nom"
+        prenoms: "prenoms"
+        genre: "M"
+        adresse: "adresse"
+
+
+    # Schema du traitement
+    Traitement:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: l'identifiant du traitement
+          readonly: true
+        patient_id: 
+          type: integer
+          description: l'identifiant du patient à traiter
+        medecin_id:
+          type: integer
+          description: l'identifiant du medecin traitant
+        nbjour:
+          type: integer
+          description: le nombre du jour du traitement
+        dateCons:
+          type: date
+          description: date du consulation (valeur par defaut date.now)
+      required:
+        - patient_id
+        - medecin_id
+        - nbjour
+      example:
+        patient_id: "patient_id"
+        medecin_id: "medecin_id"
+        dateCons: "dateCons"
+        nbjour: 1
+    
+
+    #User
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: l'identifiant de l'utilisateur
+          readonly: true
+        username:
+          type: string
+          description: pseudo de l'utilisateur
+        nom:
+          type: string
+          description: le nom de l'utilisateur (3 à 20 caractères)
+        prenoms:
+          type: string
+          description: le prenom de l'utilisateur (3 à 50 caractères et nullable)
+        email:
+          type: string
+          description: l'email de l'utilisateur
+        password:
+          type: string
+          description: le mot de passe de l'utilisateur
+        is_admin:
+          type: boolean
+          description: role d'un utilisateur
+      required:
+        - username
+        - nom
+        - email
+        - password
+      example:
+        username: "username"
+        nom: "nom"
+        prenoms: "prenoms"
+        email: "email@email.com"
+        password: "password"
+        is_admin: "false"
+    
+    #LOGIN
+    Login:
+      type: object
+      properties:
+        username:
+          type: string
+          description: pseudo de l'utilisateur
+        password:
+          type: string
+          description: le mot de passe de l'utilisateur
+      required:
+        - username
+        - password
+      example:
+        username: "username"
+        password: "password"
+
+    #LOGIN
+    Privilege:
+      type: object
+      properties:
+        username:
+          type: string
+          description: pseudo de l'utilisateur
+        is_granted:
+          type: boolean
+          description: type de requete si true => GRANT sinon REVOKE
+        privilege_on:
+          type: string
+          description: Table à ajouter du privilege
+        privilege_type:
+          type: string
+          description: Type du privilege (INSERT, UPDATE, DELETE, SELECT)
+      required:
+        - username
+        - is_granted
+        - privilege_on
+        - privilege_type
+      example:
+        username: "username"
+        is_granted: true
+        privilege_on: "table"
+        privilege_type: "INSERT"
+
+
+# TAGS
+tags:
+  - name: Medecin
+    description: Endpoint du medecin
+  - name: Patient
+    description: Endpoint du patient
+  - name: Traitement
+    description: Endpoint du traitement
+  - name: Utilisateur
+    description: Endpoint du utilisateur
+
+paths:
+  /api/medecins:
+    get:
+      summary: Recupèrer tous les medecins
+      tags: [Medecin]
+      security:
+        - jwt: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                medecin_log:
+                  type: array
+                  items: object
+        '401':
+          description: Unauthorized access
+        '500':
+          description: Server Error
+    post:
+      summary: Créer un medecin
+      tags: [Medecin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Medecin'
+      security:
+        - jwt: []
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Medecin'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                message:
+                  type: string
+                example:
+                  message: "Bad request"
+        '401':
+          description: Unauthorized access
+        '500':
+          description: Server Error
+  /api/medecins/{id}:
+    get:
+      summary: Recupèrer un medecin par id
+      tags: [Medecin]
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: string
+          required: true
+          description: l'identifiant du medecin
+      security:
+        - jwt: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Medecin'
+        '401':
+          description: Unauthorized access
+        '404':
+          description: Not Found
+        '500':
+          description: Server Error
+    put:
+      summary: Modifier un medecin
+      tags: [Medecin]
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: string
+          required: true
+          description: l'identifiant du medecin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Medecin'
+      security:
+        - jwt: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Medecin'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized access
+        '404':
+          description: Not Found
+        '500':
+          description: Server Error
+    delete:
+      summary: Supprimer un medecin
+      tags: [Medecin]
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: string
+          required: true
+          description: l'identifiant du medecin
+      security:
+        - jwt: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Medecin'
+        '401':
+          description: Unauthorized access
+        '404':
+          description: Not Found
+        '500':
+          description: Server Error
+  /api/patients:
+    get:
+      summary: Recupèrer tous les patients
+      tags: [Patient]
+      security:
+        - jwt: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                patient_log:
+                  type: array
+                  items: object
+        '401':
+          description: Unauthorized access
+        '500':
+          description: Server Error
+    post:
+      summary: Créer un patient
+      tags: [Patient]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Patient'
+      security:
+        - jwt: []
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized access
+        '500':
+          description: Server Error
+  /api/patients/{id}:
+    get:
+      summary: Recupèrer un patient par id
+      tags: [Patient]
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: string
+          required: true
+          description: l'identifiant du patient
+      security:
+        - jwt: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+        '401':
+          description: Unauthorized access
+        '404':
+          description: Not Found
+        '500':
+          description: Server Error
+    put:
+      summary: Modifier un patient
+      tags: [Patient]
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: string
+          required: true
+          description: l'identifiant du patient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Patient'
+      security:
+        - jwt: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized access
+        '404':
+          description: Not Found
+        '500':
+          description: Server Error
+    delete:
+      summary: Supprimer un patient
+      tags: [Patient]
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: string
+          required: true
+          description: l'identifiant du patient
+      security:
+        - jwt: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+        '401':
+          description: Unauthorized access
+        '404':
+          description: Not Found
+        '500':
+          description: Server Error
+  /api/traitements:
+    get:
+      summary: Recupèrer tous les traitements
+      tags: [Traitement]
+      security:
+        - jwt: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                traitement_log:
+                  type: array
+                  items: object
+        '401':
+          description: Unauthorized access
+        '500':
+          description: Server Error
+    post:
+      summary: Initier un traitement
+      tags: [Traitement]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Traitement'
+      security:
+        - jwt: []
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Traitement'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized access
+        '404':
+         description: Not Found
+        '500':
+          description: Server Error
+  /api/traitements/{id}:
+    get:
+      summary: Recupèrer un traitement par id
+      tags: [Traitement]
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: string
+          required: true
+          description: l'identifiant du traitement
+      security:
+        - jwt: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Traitement'
+        '401':
+          description: Unauthorized access
+        '404':
+          description: Not Found
+        '500':
+          description: Server Error
+    put:
+      summary: Modifier un traitement
+      tags: [Traitement]
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: string
+          required: true
+          description: l'identifiant du traitement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Traitement'
+      security:
+        - jwt: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Traitement'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized access
+        '404':
+          description: Not Found
+        '500':
+          description: Erreur du serveur
+    delete:
+      summary: Supprimer un traitement
+      tags: [Traitement]
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: string
+          required: true
+          description: l'identifiant du traitement
+      security:
+        - jwt: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Traitement'
+        '401':
+          description: Unauthorized access
+        '404':
+          description: Not Found
+        '500':
+          description: Server Error
+  /api/users:
+    get:
+      summary: Recupèrer tous les utilisateurs
+      tags: [Utilisateur]
+      security:
+        - jwt: []
+      responses:
+        '200':
+          description: Affiche la liste des utilisateurs
+          content:
+            application/json:
+              schema:
+                user_log:
+                  type: array
+                  items: object
+        '401':
+          description: Utilisateur non autorisé pour lancer la requête
+        '500':
+          description: Erreur du serveur
+  /api/users/{id}:
+    get:
+      summary: Recupèrer un utilisateur par id
+      tags: [Utilisateur]
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: string
+          required: true
+          description: l'identifiant de l'utilisateur
+      security:
+        - jwt: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized access
+        '403':
+          description: Forbiden
+        '404':
+          description: Not Found
+        '500':
+          description: Erreur du serveur
+    patch:
+      summary: Modifier un utilisateur
+      tags: [Utilisateur]
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: string
+          required: true
+          description: l'identifiant de l'utilisateur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      security:
+        - jwt: []
+      responses:
+        '200':
+          description: Affiche le traitement modifié
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized access
+        '403':
+          description: Forbiden
+        '404':
+          description: Not Found
+        '500':
+          description: Erreur du serveur
+    delete:
+      summary: Supprimer un utilisateur
+      tags: [Utilisateur]
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: string
+          required: true
+          description: l'identifiant de l'utilisateur
+      security:
+        - jwt: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized access
+        '403':
+          description: Forbiden
+        '404':
+          description: Not Found
+        '500':
+          description: Erreur du serveur
+  /api/users_activities:
+    get:
+      summary: Historiques des opérations des utilisateurs
+      tags: [Utilisateur]
+      security:
+        - jwt: []
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbiden
+          content:
+            application/json:
+              schema:
+                message:
+                  type: string
+        '500':
+          description: Server Error
+  /api/users/{id}/users_activities:
+    get:
+      summary: Historiques des opérations d'un utilisateur
+      tags: [Utilisateur]
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: string
+          required: true
+          description: l'identifiant de l'utilisateur
+      security:
+        - jwt: []
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbiden
+          content:
+            application/json:
+              schema:
+                message:
+                  type: string
+        '500':
+          description: Server Error
+  /api/users/privilege:
+    post:
+      summary: Endpoint qui permet de d'ajouter et supprimer un privilege 
+      tags: [Utilisateur]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+             $ref: '#/components/schemas/Privilege'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                message:
+                  type: string
+        '500':
+          description: Server Error
+  /api/register:
+    post:
+      summary: Créer un utilisateur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                message:
+                  type: string
+        '500':
+          description: Server Error
+  /api/login:
+    post:
+      summary: Se connecter à l'application
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                accessToken:
+                  type: string
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                message:
+                  type: string
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                message:
+                  type: string 
+        '500':
+          description: Server Error
+  /api/logout:
+    post:
+      summary: Se deconnecter
+      security:
+        - jwt: []
+      responses:
+        '200':
+          description: Utilisateur déconnecté
+        '500':
+          description: Erreur du serveur
+  /api/refreshToken:
+    get:
+      summary: Refresh token
+      security:
+        - jwt: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                accessToken:
+                  type: string
+        '400':
+          description: Bad Request
+        '403':
+          description: Forbiden
+        '404':
+          description: Not Found 
+        '500':
+          description: Erreur du serveur
+
+
+
+
+
+        
